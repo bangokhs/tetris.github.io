@@ -60,7 +60,6 @@
         const BLOCK_SIZE = canvas.width / COLS; // 30px
 
         // 테트리스 블록 정의 (Tetrominoes)
-        // [모양, 색상]
         const TETROMINOES = [
             // I (Cyan)
             { shape: [[0, 0, 0, 0], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0]], color: '#00FFFF' }, 
@@ -155,6 +154,8 @@
             currentPiece = JSON.parse(JSON.stringify(TETROMINOES[index])); 
             
             const shapeWidth = currentPiece.shape[0].length;
+            
+            // **[버그 수정 확인]** Y 좌표를 0 (맨 위)로 명확하게 초기화
             currentX = Math.floor(COLS / 2) - Math.floor(shapeWidth / 2);
             currentY = 0; 
             
@@ -182,7 +183,7 @@
                         // 1. 바닥 또는 수평 경계 확인
                         if (boardX < 0 || boardX >= COLS || boardY >= ROWS) return false;
                         
-                        // 2. 고정된 블록과의 충돌 확인 (버그 수정: y좌표가 0보다 작은 경우 제외)
+                        // 2. 고정된 블록과의 충돌 확인 (y좌표가 0보다 작은 경우 제외)
                         if (boardY >= 0 && board[boardY][boardX] !== 0) return false;
                     }
                 }
@@ -210,8 +211,6 @@
             // 회전이 유효하면 업데이트
             if (isValidMove(currentX, currentY, newShape)) {
                 currentPiece.shape = newShape;
-            } else {
-                // 단순 회전이 막히는 경우, SRS(Super Rotation System) 적용이 필요하지만, 여기서는 생략하고 회전 불가 처리
             }
         }
 
@@ -223,13 +222,16 @@
                 for (let x = 0; x < currentPiece.shape[y].length; x++) {
                     if (currentPiece.shape[y][x] === 1) {
                         // 현재 블록의 색상으로 보드 셀을 채움
-                        board[currentY + y][currentX + x] = currentPiece.color; 
+                        // **주의**: y 좌표가 0보다 작을 수 있음. 이 경우 보드 밖이므로 처리 안 함.
+                        if (currentY + y >= 0) {
+                            board[currentY + y][currentX + x] = currentPiece.color; 
+                        }
                     }
                 }
             }
             checkClearLines();
             score += 10; // 블록 고정 시 기본 점수
-            generatePiece();
+            generatePiece(); // **[버그 수정 확인]** 여기서 currentY가 0으로 재설정됨
         }
 
         /**
@@ -333,7 +335,7 @@
                     while (isValidMove(currentX, currentY + 1, currentPiece.shape)) {
                         currentY++;
                     }
-                    lockPiece();
+                    lockPiece(); // 고정 후 새 블록 생성 (currentY=0)
                     break;
                 default:
                     return;
@@ -360,6 +362,8 @@
                 e.preventDefault(); 
             }
             handleKeyInput(e.key);
+            // 키 입력 처리 후 화면 갱신
+            draw(); 
         });
 
         // 게임 시작
