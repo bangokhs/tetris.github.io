@@ -63,7 +63,7 @@
             color: #ffcc00;
             margin-bottom: 10px;
             text-align: center;
-            /* [라인 수 표시 강화] 이 부분을 수정하여 라인 수 포맷 변경 */
+            /* 라인 수 포맷이 여기에 업데이트됩니다. */
         }
         #start-button, #restart-button {
             padding: 15px 30px;
@@ -166,8 +166,8 @@
         let currentY = 0;
         let gameRunning = false; 
         let score = 0;
-        let lines = 0;
-        let combo = 0; // **[콤보 기능]** 콤보 횟수 변수 추가
+        let lines = 0; // **[핵심]** 지운 라인 총 수
+        let combo = 0;
         let dropInterval = 1000;
         let lastDropTime = 0;
         let lockTimeout = null;
@@ -293,9 +293,9 @@
                 }
             }
             
-            // **[콤보 표시]**
+            // 콤보 표시
             if (gameRunning && combo > 1) {
-                ctx.fillStyle = '#FFD700'; // 금색
+                ctx.fillStyle = '#FFD700';
                 ctx.font = 'bold 30px Arial';
                 ctx.textAlign = 'center';
                 ctx.fillText(`COMBO x ${combo}`, canvas.width / 2, canvas.height / 3);
@@ -305,7 +305,7 @@
             drawSidePiece(nextCtx, nextPiece);
             drawSidePiece(holdCtx, heldPiece);
 
-            // **[라인 수 표시 강화]**
+            // **[핵심] LINES 변수 업데이트**
             document.getElementById('game-status').textContent = 
                 `점수: ${score} | LINES: ${lines} ${!gameRunning && (score > 0 || lines > 0) ? ' | GAME OVER!' : ''}`;
             
@@ -413,17 +413,14 @@
                 }
             }
             
-            const clearedLines = checkClearLines(); // 지운 라인 수 반환 받음
+            const clearedLines = checkClearLines();
 
             if (clearedLines > 0) {
-                // 라인을 지웠으면 콤보 증가
                 combo++;
-                // 콤보 점수 추가 (예시: 콤보 * 50점 추가)
                 if (combo > 1) {
                     score += combo * 50; 
                 }
             } else {
-                // 라인을 못 지웠으면 콤보 초기화
                 combo = 0;
             }
             
@@ -480,9 +477,6 @@
             draw();
         }
 
-        /**
-         * 줄 제거 및 이펙트 발생. 지운 라인 수를 반환합니다.
-         */
         function checkClearLines() {
             let clearedCount = 0;
             linesToClear = [];
@@ -513,7 +507,7 @@
                         }
                     }
                     
-                    lines += clearedCount;
+                    lines += clearedCount; // **[핵심]** 라인 수 업데이트
                     if (clearedCount === 1) score += 100;
                     else if (clearedCount === 2) score += 300;
                     else if (clearedCount === 3) score += 500;
@@ -524,7 +518,7 @@
                 }, LINE_CLEAR_DURATION);
             }
             
-            return clearedCount; // 지운 라인 수 반환
+            return clearedCount;
         }
 
         // ===================================
@@ -623,8 +617,8 @@
 
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             score = 0;
-            lines = 0;
-            combo = 0; // 콤보 초기화
+            lines = 0; // 초기화
+            combo = 0;
             gameRunning = true;
             lastDropTime = 0;
             currentPiece = null;
