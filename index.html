@@ -37,17 +37,21 @@
             50% { transform: translate(-3px, -3px); }
             100% { transform: translate(3px, 3px); }
         }
-        #side-panel {
+        /* [레이아웃 변경] 좌우 패널 스타일 */
+        .side-panel {
             width: 150px;
             display: flex;
             flex-direction: column;
             gap: 15px;
+            align-items: center;
         }
         .panel-section {
             background-color: #333;
             padding: 10px;
             border-radius: 5px;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            text-align: center;
         }
         #next-piece-canvas, #hold-piece-canvas {
             border: 1px solid #555;
@@ -60,18 +64,22 @@
             margin-bottom: 10px;
             text-align: center;
         }
-        #restart-button {
-            padding: 10px 20px;
-            font-size: 1.2em;
+        #start-button, #restart-button {
+            padding: 15px 30px;
+            font-size: 1.5em;
             cursor: pointer;
             background-color: #4CAF50;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             transition: background-color 0.3s;
-            display: none;
+            margin-top: 20px;
+            display: none; /* 초기에는 숨김 또는 표시 상태에 따라 달라짐 */
         }
-        #restart-button:hover {
+        #restart-button {
+            background-color: #FF5733; /* 재시작 버튼 색상 */
+        }
+        #start-button:hover, #restart-button:hover {
             background-color: #45a049;
         }
         #info {
@@ -87,15 +95,10 @@
     <div id="game-status">점수: 0 | 라인: 0</div>
 
     <div id="game-container">
-        <div id="side-panel">
+        <div id="left-panel" class="side-panel">
             <div class="panel-section">
                 <strong>HOLD</strong>
                 <canvas id="hold-piece-canvas" width="120" height="120"></canvas>
-            </div>
-            
-            <div class="panel-section">
-                <strong>NEXT</strong>
-                <canvas id="next-piece-canvas" width="120" height="120"></canvas>
             </div>
         </div>
 
@@ -103,9 +106,16 @@
             <canvas id="tetris-board" width="300" height="600"></canvas>
         </div>
         
+        <div id="right-panel" class="side-panel">
+            <div class="panel-section">
+                <strong>NEXT</strong>
+                <canvas id="next-piece-canvas" width="120" height="120"></canvas>
+            </div>
+        </div>
     </div>
     
-    <button id="restart-button">게임 재시작</button>
+    <button id="start-button">START GAME</button>
+    <button id="restart-button" style="display: none;">RESTART GAME</button>
 
     <div id="info">
         조작 키: **A** (좌), **D** (우), **S** (하), **W/R** (회전), **Space** (하드 드롭), **Shift** (홀드)<br>
@@ -122,11 +132,10 @@
         const LOCK_DELAY = 500;
         const LINE_CLEAR_DURATION = 200; 
 
-        // 키 반복 속도 관련 설정
-        const KEY_INITIAL_DELAY = 150; // **[조작 개선]** 첫 키 입력 후 반복 시작까지의 지연 시간 (단축)
-        const KEY_REPEAT_RATE = 50;  // 반복 입력 간격 (빠르게 유지)
+        const KEY_INITIAL_DELAY = 150;
+        const KEY_REPEAT_RATE = 50;  
         
-        // Canvas 설정
+        // Canvas 및 Context 설정
         const canvas = document.getElementById('tetris-board');
         const boardWrapper = document.getElementById('board-wrapper');
         const ctx = canvas.getContext('2d');
@@ -156,7 +165,7 @@
         let holdUsed = false;
         let currentX = 0;
         let currentY = 0;
-        let gameRunning = true;
+        let gameRunning = false; // **[시작 버튼]** 초기에는 false로 설정
         let score = 0;
         let lines = 0;
         let dropInterval = 1000;
@@ -174,9 +183,6 @@
         // 2. 시각화 및 드로잉 함수
         // ===================================
 
-        /**
-         * 단일 블록 드로잉 함수 (투명도 옵션 추가)
-         */
         function drawBlock(ctx, x, y, color, size, drawBorder = true, alpha = 1.0) {
             ctx.globalAlpha = alpha;
             ctx.fillStyle = color;
@@ -187,7 +193,7 @@
                 ctx.lineWidth = 1;
                 ctx.strokeRect(x * size, y * size, size, size);
             }
-            ctx.globalAlpha = 1.0; // 투명도 원복
+            ctx.globalAlpha = 1.0; 
         }
         
         function drawGrid() {
@@ -230,9 +236,6 @@
             }
         }
 
-        /**
-         * [고스트 피스] 블록이 최종 떨어질 위치를 계산합니다.
-         */
         function getDropY() {
             let dropY = currentY;
             while (isValidMove(currentX, dropY + 1, currentPiece.shape)) {
@@ -251,9 +254,8 @@
             const elapsed = Date.now() - clearStartTime;
             const drawBlocks = isClearing ? elapsed > LINE_CLEAR_DURATION : true; 
 
-            // **1. 고정된 블록 그리기**
+            // 1. 고정된 블록 그리기
             for (let y = 0; y < ROWS; y++) {
-                // 라인 클리어 이펙트 중에는 해당 줄의 고정 블록을 그리지 않습니다.
                 if (isClearing && linesToClear.includes(y)) {
                     continue;
                 }
@@ -269,20 +271,19 @@
             }
 
             if (currentPiece && drawBlocks) {
-                // **2. 고스트 피스 그리기 (투명하게)**
+                // 2. 고스트 피스 그리기
                 const dropY = getDropY();
                 if (dropY !== currentY) {
                     for (let y = 0; y < currentPiece.shape.length; y++) {
                         for (let x = 0; x < currentPiece.shape[y].length; x++) {
                             if (currentPiece.shape[y][x] === 1) {
-                                // 투명도 0.3으로 고스트 블록 표시
                                 drawBlock(ctx, currentX + x, dropY + y, currentPiece.color, BLOCK_SIZE, true, 0.3);
                             }
                         }
                     }
                 }
 
-                // **3. 현재 움직이는 블록 그리기**
+                // 3. 현재 움직이는 블록 그리기
                 for (let y = 0; y < currentPiece.shape.length; y++) {
                     for (let x = 0; x < currentPiece.shape[y].length; x++) {
                         if (currentPiece.shape[y][x] === 1) {
@@ -296,16 +297,17 @@
             drawSidePiece(nextCtx, nextPiece);
             drawSidePiece(holdCtx, heldPiece);
 
+            // **[라인 수 지속 표시]** gameRunning 상태와 관계없이 표시
             document.getElementById('game-status').textContent = 
-                `점수: ${score} | 라인: ${lines} ${gameRunning ? '' : ' | GAME OVER!'}`;
+                `점수: ${score} | 라인: ${lines} ${!gameRunning && (score > 0 || lines > 0) ? ' | GAME OVER!' : ''}`;
             
-            document.getElementById('restart-button').style.display = gameRunning ? 'none' : 'block';
+            document.getElementById('restart-button').style.display = !gameRunning && (score > 0 || lines > 0) ? 'block' : 'none';
         }
 
         // ===================================
         // 3. 핵심 게임 로직 함수
         // ===================================
-        
+
         function getRandomTetromino() {
             const index = Math.floor(Math.random() * TETROMINOES.length);
             return JSON.parse(JSON.stringify(TETROMINOES[index]));
@@ -456,9 +458,6 @@
             draw();
         }
 
-        /**
-         * 줄 제거 및 이펙트 발생 (화면 깜빡임 수정 로직 포함)
-         */
         function checkClearLines() {
             let clearedCount = 0;
             linesToClear = [];
@@ -474,23 +473,18 @@
                 boardWrapper.classList.add('shake');
                 clearStartTime = Date.now();
 
-                // **[화면 깜빡임 수정]**
-                // 1. 라인 클리어 이펙트가 시작될 때 draw()를 호출하여 깜빡이는 줄을 그립니다.
-                // draw() 함수가 requestAnimationFrame 내에서 다음 프레임에 호출되므로, 
-                // 즉시 draw()를 호출하여 깜빡이는 화면을 갱신합니다.
+                // 화면 깜빡임 수정
                 draw(); 
                 
                 setTimeout(() => {
                     boardWrapper.classList.remove('shake');
                     
-                    let clearedRows = 0;
                     for (let y = ROWS - 1; y >= 0; y--) {
                         if (board[y].every(cell => cell !== 0)) {
                             for (let k = y; k > 0; k--) {
                                 board[k] = board[k - 1];
                             }
                             board[0] = Array(COLS).fill(0);
-                            clearedRows++;
                             y++; 
                         }
                     }
@@ -516,7 +510,7 @@
             
             let moved = false;
             
-            // 1. 회전 처리 (W/R/ArrowUp) - 한 번만 처리
+            // 회전 처리 (W/R/ArrowUp)
             if (keysPressed['w'] || keysPressed['r'] || keysPressed['arrowup']) {
                 if (rotatePiece()) {
                     moved = true; 
@@ -524,14 +518,14 @@
                 keysPressed['w'] = keysPressed['r'] = keysPressed['arrowup'] = false; 
             }
             
-            // 2. 홀드 처리 (Shift) - 한 번만 처리
+            // 홀드 처리 (Shift)
             if (keysPressed['shift']) {
                 holdPiece();
                 keysPressed['shift'] = false;
                 return;
             }
             
-            // 3. 하드 드롭 처리 (Space) - 한 번만 처리
+            // 하드 드롭 처리 (Space)
             if (keysPressed[' ']) {
                 while (isValidMove(currentX, currentY + 1, currentPiece.shape)) {
                     currentY++;
@@ -541,7 +535,7 @@
                 return;
             }
             
-            // 4. 수평 이동 처리 (A/D/ArrowLeft/ArrowRight)
+            // 수평 이동 처리
             let newX = currentX;
             if (keysPressed['a'] || keysPressed['arrowleft']) {
                 newX = currentX - 1;
@@ -549,13 +543,13 @@
                 newX = currentX + 1;
             }
 
-            // 5. 소프트 드롭 처리 (S/ArrowDown)
+            // 소프트 드롭 처리
             let newY = currentY;
             if (keysPressed['s'] || keysPressed['arrowdown']) {
                 newY = currentY + 1;
             }
             
-            // 6. 이동 유효성 확인 및 락 타이머 재설정
+            // 이동 유효성 확인 및 락 타이머 재설정
             const isValidHMove = isValidMove(newX, currentY, currentPiece.shape);
             const isValidVMove = isValidMove(currentX, newY, currentPiece.shape);
 
@@ -578,13 +572,9 @@
             }
         }
         
-        /**
-         * [조작 개선] 키 반복 타이머 (첫 딜레이와 반복 속도 분리)
-         */
         function startKeyRepeat() {
             if (keyRepeatTimer) return;
             
-            // 초기 지연 후 반복 시작
             keyRepeatTimer = setTimeout(() => {
                 keyRepeatTimer = setInterval(handleInput, KEY_REPEAT_RATE);
             }, KEY_INITIAL_DELAY);
@@ -607,7 +597,15 @@
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        function restartGame() {
+        /**
+         * [시작 버튼] 게임을 완전히 초기화하고 시작합니다.
+         */
+        function startGame() {
+            // 버튼 숨기기/보이기
+            document.getElementById('start-button').style.display = 'none';
+            document.getElementById('restart-button').style.display = 'none';
+
+            // 상태 초기화
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
             score = 0;
             lines = 0;
@@ -632,24 +630,22 @@
         }
 
         // -----------------------------------
-        // 이벤트 리스너: 동시 입력 처리
+        // 이벤트 리스너 및 초기 설정
         // -----------------------------------
 
         document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return; // 게임 실행 중일 때만 조작 허용
+
             const key = e.key.toLowerCase();
-            if (e.key === ' ' && gameRunning) e.preventDefault(); 
-            if (e.key === 'Shift' && gameRunning) e.preventDefault(); 
+            if (e.key === ' ' || e.key === 'Shift') e.preventDefault(); 
             
-            // 키가 처음 눌렸을 때만 처리
             if (!keysPressed[key]) {
                 keysPressed[key] = true;
                 
-                // 회전, 하드 드롭, 홀드는 키 반복이 아닌 첫 입력에서만 작동해야 합니다.
                 if (['w', 'r', 'arrowup', ' ', 'shift'].includes(key)) {
                     handleInput(); 
                 } else {
-                    // 수평/소프트 드롭은 반복 입력의 대상입니다.
-                    handleInput(); // 첫 움직임
+                    handleInput();
                     startKeyRepeat();
                 }
             }
@@ -659,7 +655,6 @@
             const key = e.key.toLowerCase();
             delete keysPressed[key];
             
-            // 수평/소프트 드롭 키가 떼졌을 때 반복 타이머 정지
             if (['a', 'd', 'arrowleft', 'arrowright', 's', 'arrowdown'].includes(key)) {
                 let repeatingKeyStillPressed = false;
                 for(let k in keysPressed) {
@@ -674,9 +669,13 @@
             }
         });
         
-        document.getElementById('restart-button').addEventListener('click', restartGame);
+        document.getElementById('start-button').addEventListener('click', startGame);
+        document.getElementById('restart-button').addEventListener('click', startGame); // 재시작 버튼도 startGame 함수를 사용
 
-        restartGame();
+        // 초기 화면 설정
+        drawSidePiece(nextCtx, getRandomTetromino()); // 시작 전 다음 블록 미리보기
+        document.getElementById('start-button').style.display = 'block'; // 시작 버튼 표시
+        draw(); // 초기 보드 상태 그리기 (빈 보드와 초기 NEXT 블록)
     </script>
 </body>
 </html>
